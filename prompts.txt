@@ -1,0 +1,143 @@
+# Prompt 1
+
+You are assisting with the development of a PowerShell-based deployment runner that emulates Octopus Deploy behavior inside Harness.
+
+Context:
+- A base script named "Invoke-ArchitectDeploymentRunner.ps1" already exists.
+- The script follows strict internal coding standards:
+  - Only approved PowerShell verbs
+  - All functions must use [CmdletBinding()]
+  - All parameters must be explicitly typed
+  - Logging must use Write-Host (NOT Write-Verbose)
+  - Logging format: <FunctionName>:: <message>
+  - Use $MyInvocation.MyCommand.Name for all logs
+  - All parameters must be logged at function start
+  - try/catch/finally is mandatory
+  - Do NOT throw strings, always throw System.Exception with InnerException
+  - $null comparisons must always be with $null on the LEFT side
+
+Current capabilities:
+- Creates a deployment workspace
+- Downloads main NuGet package
+- Downloads secondary package "SchemeRegenerator"
+- Executes:
+  - PreDeploy.ps1
+  - Deploy.ps1
+- Cleans up workspace
+
+Goal:
+Continue improving the deployment runner to fully emulate Octopus Deploy behavior.
+
+Next tasks to implement:
+
+1. Implement state persistence between steps:
+   - Create a function Save-DeploymentState
+   - Create a function Get-DeploymentState
+   - Store state as JSON in the workspace
+   - This state must include:
+     - ArchitectServiceName
+     - ArchitectServiceStatus
+     - ArchitectServiceWasRunning
+     - ArchitectPortalFolder
+     - ArchitectDataSpace
+
+2. Implement proper failure handling:
+   - If Deploy.ps1 fails, automatically call DeployFailed.ps1
+   - Use the persisted state to populate its parameters
+   - Ensure DeployFailed.ps1 is never called without valid state
+
+3. Implement SchemeRegenerator integration:
+   - Add a function Prepare-ToolsPackage
+   - Copy or expose the SchemeRegenerator package into a location accessible by Deploy.ps1
+   - Do NOT modify Deploy.ps1 yet, assume it expects a known folder structure
+
+4. Improve robustness:
+   - Validate all critical paths before execution
+   - Add defensive checks before running external scripts
+   - Ensure cleanup runs even if DeployFailed.ps1 fails
+
+5. Maintain strict adherence to the coding standards above
+
+Constraints:
+- Do NOT rewrite existing functions unless necessary
+- Extend the script incrementally
+- Keep functions small and single-purpose
+- Do NOT introduce external dependencies
+- Keep everything PowerShell 5 compatible
+
+Output:
+- Only provide the new or modified functions
+- Do NOT repeat the entire script
+- Clearly indicate where each function should be integrated
+
+# Prompt 2
+
+Focus only on implementing state persistence and rollback support for the existing PowerShell script "Invoke-ArchitectDeploymentRunner.ps1".
+
+The script already exists. Do not rewrite the whole script.
+
+Coding standards:
+- PowerShell 5 compatible
+- Use approved verbs only
+- Every function must use [CmdletBinding()]
+- All parameters must be explicitly typed
+- Use Write-Host for logging
+- Log format must be: <FunctionName>:: <message>
+- Use $MyInvocation.MyCommand.Name in all functions
+- Log all received parameters
+- Use try/catch/finally in every function
+- Do not throw strings
+- Preserve original exceptions using System.Exception with InnerException
+- $null comparisons must use $null on the LEFT side
+
+Required additions:
+
+1. Add a function named Save-DeploymentState.
+It should:
+- Receive WorkspacePath and State hashtable/object
+- Save the state as JSON to:
+  <WorkspacePath>\deploymentState.json
+- Validate WorkspacePath exists
+- Return the full state file path
+
+2. Add a function named Get-DeploymentState.
+It should:
+- Receive WorkspacePath
+- Read <WorkspacePath>\deploymentState.json
+- Validate the file exists
+- Convert JSON back into a PowerShell object
+- Validate the following required fields exist and are not empty:
+  - ArchitectServiceName
+  - ArchitectServiceStatus
+  - ArchitectServiceWasRunning
+  - ArchitectPortalFolder
+  - ArchitectDataSpace
+- Return the state object
+
+3. Add a function named Invoke-ArchitectDeployFailed.
+It should:
+- Receive PackageRoot, WorkspacePath, ArchitectDeployPath, ArchitectBackupPath, and OctopusMachineRoles
+- Load deployment state using Get-DeploymentState
+- Execute DeployFailed.ps1 from PackageRoot
+- Pass these parameters to DeployFailed.ps1:
+  - ArchitectDeployPath
+  - ArchitectPortalFolder
+  - ArchitectBackupPath
+  - ArchitectServiceName
+  - ArchitectServiceStatus
+  - ArchitectServiceWasRunning
+  - ArchitectDataSpace
+  - OctopusMachineRoles
+- Reuse Invoke-ExternalPowerShellScript if possible
+
+4. Modify the catch block around Deploy.ps1 execution:
+- If Deploy.ps1 fails, call Invoke-ArchitectDeployFailed
+- If DeployFailed.ps1 also fails, preserve that exception but do not lose the original Deploy.ps1 exception
+- Cleanup must still run from the outer finally block
+
+5. Do not invent values for the state.
+For now, add a clearly marked placeholder section showing where the deployment state should be created or imported.
+
+Output:
+- Only show the new functions and the minimal modifications needed to the existing Invoke-ArchitectDeployment function.
+- Do not output the entire script.
