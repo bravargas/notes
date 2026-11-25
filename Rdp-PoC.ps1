@@ -1,3 +1,6 @@
+
+    
+  
 # Remote Workspace - Phase 1: embedded RDP feasibility test
 # Windows PowerShell 5.1, STA. No credentials stored.
 $ErrorActionPreference = 'Stop'
@@ -16,7 +19,7 @@ public sealed class RdpProbeHost : AxHost {
         rdp.DesktopWidth = Math.Max(640, Width);
         rdp.DesktopHeight = Math.Max(480, Height);
         rdp.AdvancedSettings9.EnableCredSspSupport = true;
-        rdp.AdvancedSettings9.AuthenticationLevel = 1u;
+        rdp.AdvancedSettings9.AuthenticationLevel = 2u;
         rdp.AdvancedSettings9.SmartSizing = true;
         rdp.Connect();
     }
@@ -86,3 +89,4 @@ $timer.Add_Tick({
 $form.Add_Shown({ $timer.Start(); $server.Focus() })
 $form.Add_FormClosing({ $timer.Stop(); foreach ($page in $tabs.TabPages) { try { $page.Tag.DisconnectSession() } catch {} } })
 try { [void]$form.ShowDialog() } finally { $timer.Dispose(); $form.Dispose() }
+
