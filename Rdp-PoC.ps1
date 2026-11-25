@@ -6,21 +6,35 @@
 $ErrorActionPreference = 'Stop'
 if ([Threading.Thread]::CurrentThread.GetApartmentState() -ne 'STA') { throw 'Run with powershell.exe -STA -File Rdp-PoC.ps1' }
 Add-Type -AssemblyName System.Windows.Forms,System.Drawing
-if (-not ('RdpProbeHost' -as [type])) {
+if (-not ('RdpProbeHostV003' -as [type])) {
     Add-Type -ReferencedAssemblies 'System.Windows.Forms.dll','System.Drawing.dll','Microsoft.CSharp.dll','System.Core.dll' -TypeDefinition @'
 using System;
 using System.Windows.Forms;
-public sealed class RdpProbeHost : AxHost {
-    public RdpProbeHost() : base("A0C63C30-F08D-4AB4-907C-34905D770C7D") {}
+public sealed class RdpProbeHostV003 : AxHost {
+    public RdpProbeHostV003() : base("A0C63C30-F08D-4AB4-907C-34905D770C7D") {}
     public void OpenSession(string server, string user) {
         dynamic rdp = GetOcx();
         rdp.Server = server;
-        if (!String.IsNullOrWhiteSpace(user)) rdp.UserName = user;
+        if (!String.IsNullOrWhiteSpace(user)) {
+            int separator = user.IndexOf('\\');
+            if (separator > 0) {
+                rdp.Domain = user.Substring(0, separator);
+                rdp.UserName = user.Substring(separator + 1);
+            } else { rdp.UserName = user; }
+        }
         rdp.DesktopWidth = Math.Max(640, Width);
         rdp.DesktopHeight = Math.Max(480, Height);
         rdp.AdvancedSettings9.EnableCredSspSupport = true;
         rdp.AdvancedSettings9.AuthenticationLevel = 2u;
         rdp.AdvancedSettings9.SmartSizing = true;
+        try { rdp.AllowPromptingForCredentials = true; }
+        catch (Exception ex) { Console.WriteLine("AllowPromptingForCredentials: " + ex.Message); }
+        try { rdp.PromptForCredentials = true; }
+        catch (Exception ex) { Console.WriteLine("PromptForCredentials: " + ex.Message); }
+        try { rdp.PromptForCredsOnClient = true; }
+        catch (Exception ex) { Console.WriteLine("PromptForCredsOnClient: " + ex.Message); }
+        try { rdp.AllowCredentialSaving = false; }
+        catch (Exception ex) { Console.WriteLine("AllowCredentialSaving: " + ex.Message); }
         rdp.Connect();
     }
     public int ConnectionState() { dynamic rdp = GetOcx(); return (int)rdp.Connected; }
@@ -30,7 +44,7 @@ public sealed class RdpProbeHost : AxHost {
 }
 [Windows.Forms.Application]::EnableVisualStyles()
 $form = New-Object Windows.Forms.Form
-$form.Text = 'Remote Workspace - RDP proof of concept'
+$form.Text = 'Remote Workspace - RDP proof of concept v0.0.3'
 $form.Size = New-Object Drawing.Size(1200,800)
 $form.StartPosition = 'CenterScreen'
 $bar = New-Object Windows.Forms.FlowLayoutPanel
@@ -55,7 +69,7 @@ $connect.Add_Click({
     $page = $null; $hostControl = $null
     try {
         $page = New-Object Windows.Forms.TabPage($target)
-        $hostControl = New-Object RdpProbeHost
+        $hostControl = New-Object RdpProbeHostV003
         $hostControl.Dock = 'Fill'
         $page.Tag = $hostControl
         ([ComponentModel.ISupportInitialize]$hostControl).BeginInit()
